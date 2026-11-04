@@ -14,7 +14,8 @@ WORKDIR /var/www/html
 COPY . .
 # Valeurs factices uniquement pour la compilation des assets, jamais conservées au runtime
 RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction \
- && APP_SECRET=build DATABASE_URL="postgresql://x:x@localhost/x?serverVersion=16" \
-    php bin/console asset-map:compile \
+ && export APP_SECRET=build DATABASE_URL="postgresql://x:x@localhost/x?serverVersion=16" \
+ && php bin/console importmap:install \
+ && php bin/console asset-map:compile \
  && mkdir -p var public/uploads \
  && chown -R www-data:www-data var public/uploads
