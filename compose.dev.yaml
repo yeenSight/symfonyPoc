@@ -1,0 +1,46 @@
+name: poc-dev
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      APP_ENV: dev
+      APP_SECRET: ${APP_SECRET:?APP_SECRET manquant}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-16}&charset=utf8
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    ports:
+      - "5432:5432"
+    volumes:
+      - database_data_dev:/var/lib/postgresql/data:rw
+
+  mailer:
+    image: axllent/mailpit
+    ports:
+      - "1025"
+      - "8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  database_data_dev:
