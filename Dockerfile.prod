@@ -1,0 +1,20 @@
+FROM php:8.3-apache
+RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev libicu-dev libzip-dev unzip git \
+ && docker-php-ext-install pdo_pgsql intl opcache zip \
+ && a2enmod rewrite \
+ && rm -rf /var/lib/apt/lists/*
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf /etc/apache2/apache2.conf
+RUN printf '<Directory ${APACHE_DOCUMENT_ROOT}>\n    AllowOverride None\n    Require all granted\n    FallbackResource /index.php\n</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
+ && a2enconf symfony
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1 APP_ENV=prod APP_DEBUG=0
+WORKDIR /var/www/html
+
+COPY . .
+# Valeurs factices uniquement pour la compilation des assets, jamais conservées au runtime
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction \
+ && APP_SECRET=build DATABASE_URL="postgresql://x:x@localhost/x?serverVersion=16" \
+    php bin/console asset-map:compile \
+ && mkdir -p var public/uploads \
+ && chown -R www-data:www-data var public/uploads

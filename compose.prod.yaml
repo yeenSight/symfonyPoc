@@ -1,0 +1,36 @@
+name: poc-prod
+
+services:
+  app:
+    image: ${APP_IMAGE:?APP_IMAGE manquant}
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      APP_ENV: prod
+      APP_SECRET: ${APP_SECRET:?APP_SECRET manquant}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER manquant}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}@database:5432/${POSTGRES_DB:?POSTGRES_DB manquant}?serverVersion=${POSTGRES_VERSION:-16}&charset=utf8
+    ports:
+      - "8080:80"
+    volumes:
+      - uploads_data_prod:/var/www/html/public/uploads
+
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - database_data_prod:/var/lib/postgresql/data:rw
+
+volumes:
+  uploads_data_prod:
+  database_data_prod:
