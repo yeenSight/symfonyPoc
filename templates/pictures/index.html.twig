@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Albums{% endblock %}
+
+{% block body %}
+    <main class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1>Albums</h1>
+            {% if is_granted('IS_AUTHENTICATED') %}
+                <div class="d-flex gap-2">
+                    <a class="btn btn-outline-primary" href="{{ path('app_admin_album_new') }}">New album</a>
+                    <a class="btn btn-primary" href="{{ path('app_admin_picture_new') }}">Add photo</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+
+        {% if albums is empty and others is empty %}
+            <p>No albums yet.</p>
+        {% else %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% if others is not empty %}
+                    {{ _self.card('Others', 'Photos that are not in any album.', others|first.url, others|length, path('app_album_others')) }}
+                {% endif %}
+
+                {% for album in albums %}
+                    {% set latest = album.latestPicture %}
+                    {{ _self.card(album.name, album.description, latest ? latest.url : null, album.pictures|length, path('app_album_show', {id: album.id})) }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </main>
+{% endblock %}
+
+{% macro card(name, description, image, count, url) %}
+    <div class="col">
+        <div class="card h-100 shadow-sm position-relative">
+            {% if image %}
+                <img class="card-img-top" src="{{ image }}" alt="{{ name }}" style="height: 220px; object-fit: cover;">
+            {% else %}
+                <div class="card-img-top bg-secondary-subtle d-flex align-items-center justify-content-center text-muted" style="height: 220px;">No photo yet</div>
+            {% endif %}
+            <div class="card-body">
+                <h5 class="card-title">
+                    <a class="stretched-link text-decoration-none text-reset" href="{{ url }}">{{ name }}</a>
+                </h5>
+                <p class="card-text">{{ description }}</p>
+            </div>
+            <div class="card-footer text-muted small">{{ count }} photo(s)</div>
+        </div>
+    </div>
+{% endmacro %}

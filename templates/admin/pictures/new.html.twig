@@ -1,0 +1,21 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Add photo{% endblock %}
+
+{% block body %}
+    <main class="container py-4">
+        <h1>Add photo</h1>
+
+        {{ form_errors(form) }}
+        {{ form_start(form) }}
+            {{ form_row(form.title) }}
+            {{ form_row(form.description) }}
+            {{ form_row(form.metadata) }}
+            {{ form_row(form.uploadDate) }}
+            {{ form_row(form.album) }}
+            {{ form_row(form.imageFile) }}
+            <button class="btn btn-primary" type="submit">Save photo</button>
+            <a class="btn btn-secondary" href="{{ path('app_admin_picture_index') }}">Cancel</a>
+        {{ form_end(form) }}
+    </main>
+{% endblock %}

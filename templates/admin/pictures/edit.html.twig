@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit photo{% endblock %}
+
+{% block body %}
+    <main class="container py-4">
+        <h1>Edit photo</h1>
+
+        <img class="img-thumbnail mb-3" src="{{ picture.url }}" alt="{{ picture.title }}" style="max-width: 200px;">
+
+        {{ form_errors(form) }}
+        {{ form_start(form) }}
+            {{ form_row(form.title) }}
+            {{ form_row(form.description) }}
+            {{ form_row(form.metadata) }}
+            {{ form_row(form.uploadDate) }}
+            {{ form_row(form.album) }}
+            {{ form_row(form.imageFile, {help: 'Leave empty to keep the current photo.'}) }}
+            <button class="btn btn-primary" type="submit">Save changes</button>
+            <a class="btn btn-secondary" href="{{ path('app_admin_picture_index') }}">Cancel</a>
+        {{ form_end(form) }}
+    </main>
+{% endblock %}

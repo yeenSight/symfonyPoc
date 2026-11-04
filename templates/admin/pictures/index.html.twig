@@ -1,0 +1,51 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Manage photos{% endblock %}
+
+{% block body %}
+    <main class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1>Manage photos</h1>
+            <a class="btn btn-primary" href="{{ path('app_admin_picture_new') }}">Add photo</a>
+        </div>
+
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+
+        {% if pictures is empty %}
+            <p>No photos yet.</p>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Photo</th>
+                            <th>Title</th>
+                            <th>Album</th>
+                            <th>Upload date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for picture in pictures %}
+                            <tr>
+                                <td><img src="{{ picture.url }}" alt="{{ picture.title }}" style="max-width: 100px; max-height: 70px;"></td>
+                                <td>{{ picture.title }}</td>
+                                <td>{{ picture.album ? picture.album.name : '—' }}</td>
+                                <td>{{ picture.uploadDate|date('Y-m-d') }}</td>
+                                <td>
+                                    <a class="btn btn-secondary btn-sm" href="{{ path('app_admin_picture_edit', {id: picture.id}) }}">Edit</a>
+                                    <form class="d-inline" method="post" action="{{ path('app_admin_picture_delete', {id: picture.id}) }}" onsubmit="return confirm('Delete this photo?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-picture-' ~ picture.id) }}">
+                                        <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </main>
+{% endblock %}
