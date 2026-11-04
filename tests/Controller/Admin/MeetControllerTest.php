@@ -11,6 +11,6 @@ final class MeetControllerTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/admin/meet');
 
-        self::assertResponseIsSuccessful();
+        self::assertResponseRedirects('/login');
     }
 }

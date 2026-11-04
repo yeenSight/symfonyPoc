@@ -9,7 +9,7 @@ final class MeetUpControllerTest extends WebTestCase
     public function testIndex(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/meet/up');
+        $client->request('GET', '/meetup');
 
         self::assertResponseIsSuccessful();
     }
