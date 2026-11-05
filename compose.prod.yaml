@@ -14,7 +14,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - uploads_data_prod:/var/www/html/public/uploads
+      - ${UPLOADS_PATH:-/srv/poc/uploads}:/var/www/html/public/uploads
 
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
@@ -34,5 +34,4 @@ services:
       - database_data_prod:/var/lib/postgresql/data:rw
 
 volumes:
-  uploads_data_prod:
   database_data_prod:
