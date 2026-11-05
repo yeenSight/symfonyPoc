@@ -1,6 +1,7 @@
 <?php
 namespace App\Tests;
 
+use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -30,9 +31,24 @@ class RegistrationControllerTest extends WebTestCase
         $em->flush();
     }
 
+    public function testRegisterRequiresAuthentication(): void
+    {
+        $this->client->request('GET', '/register');
+
+        self::assertResponseRedirects('http://localhost/login');
+    }
+
     public function testRegister(): void
     {
-        // Register a new user
+        $admin = (new User())
+            ->setEmail('admin@example.com')
+            ->setPassword('not-used');
+        $em = static::getContainer()->get('doctrine')->getManager();
+        $em->persist($admin);
+        $em->flush();
+
+        $this->client->loginUser($admin);
+
         $this->client->request('GET', '/register');
         self::assertResponseIsSuccessful();
         self::assertPageTitleContains('Register');
@@ -42,8 +58,8 @@ class RegistrationControllerTest extends WebTestCase
             'registration_form[plainPassword]' => 'password',
         ]);
 
-        // Ensure the response redirects after submitting the form, the user exists, and is not verified
-        // self::assertResponseRedirects('/'); @TODO: set the appropriate path that the user is redirected to.
-        self::assertCount(1, $this->userRepository->findAll());
+        self::assertResponseRedirects('/register');
+        self::assertCount(2, $this->userRepository->findAll());
+        self::assertNotNull($this->userRepository->findOneBy(['email' => 'me@example.com']));
     }
 }
