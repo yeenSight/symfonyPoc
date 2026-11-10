@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html data-bs-theme="dark">
     <head>
         <meta charset="UTF-8">
         <title>{% block title %}Welcome!{% endblock %}</title>
@@ -36,21 +36,21 @@
                         <a class="nav-link {{ app.current_route == 'app_main' ? 'active' }}" {{ app.current_route == 'app_main' ? 'aria-current="page"' }} href="{{ path('app_main') }}">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ app.current_route == 'app_meet_up' ? 'active' }}" {{ app.current_route == 'app_meet_up' ? 'aria-current="page"' }} href="{{ path('app_meet_up') }}">Event</a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {{ app.current_route in ['app_pictures', 'app_album_show'] ? 'active' }}" href="{{ path('app_pictures') }}">Albums</a>
                     </li>
                     {% if is_granted('IS_AUTHENTICATED') %}
                         <li class="nav-item">
                             <a class="nav-link {{ app.current_route == 'app_admin_picture_new' ? 'active' }}" href="{{ path('app_admin_picture_new') }}">Add photo</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ app.current_route == 'app_admin_picture_bulk' ? 'active' }}" href="{{ path('app_admin_picture_bulk') }}">Bulk upload</a>
+                        </li>
                     {% endif %}
                     <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Menu déroulant</a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Informations</a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#">mock</a></li>
-                        <li><a class="dropdown-item" href="#">mock</a></li>
+                        <li><a class="dropdown-item" href="{{ path('app_about') }}">About me</a></li>
+                        <li><a class="dropdown-item" href="{{ path('app_legal') }}">Legal information</a></li>
                     </ul>
                     </li>
                 </ul>

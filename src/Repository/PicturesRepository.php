@@ -15,4 +15,12 @@ class PicturesRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Pictures::class);
     }
+
+    /**
+     * @return list<Pictures>
+     */
+    public function findLatest(int $limit = 3): array
+    {
+        return $this->findBy([], ['uploadDate' => 'DESC', 'id' => 'DESC'], $limit);
+    }
 }
