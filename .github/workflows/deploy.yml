@@ -3,6 +3,8 @@ name: CI/CD
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/workflows/dump-database.yml'
   pull_request:
 
 concurrency:

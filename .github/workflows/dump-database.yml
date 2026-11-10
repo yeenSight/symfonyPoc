@@ -1,0 +1,41 @@
+name: Télécharger un dump de la base
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Configurer SSH
+        env:
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+
+      - name: Générer le dump PostgreSQL
+        env:
+          SSH_TARGET: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+        run: |
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_TARGET" \
+            "cd /opt/app && docker compose --env-file .env -f compose.prod.yaml exec -T database sh -c 'exec pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Fc'" \
+            > backup.dump
+
+      - name: Conserver le dump comme artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-dump
+          path: backup.dump
+          retention-days: 1
+          if-no-files-found: error
