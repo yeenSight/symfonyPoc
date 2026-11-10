@@ -3,5 +3,28 @@
 {% block title %}Welcome{% endblock %}
 
 {% block body %}
-
+    <section class="latest-pictures">
+        <h2>Last Pictures</h2>
+        {% if pictures is empty %}
+            <p>This album has no photos yet.</p>
+        {% else %}
+            <div class="row g-3">
+                {% for picture in pictures %}
+                    <div class="col-12 col-md-4">
+                        <div class="card h-100">
+                            <button type="button" class="p-0 border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#picture-modal-{{ picture.id }}" aria-label="View {{ picture.title }}">
+                                <img class="card-img-top" src="{{ picture.url }}" alt="{{ picture.title }}" style="height: 220px; object-fit: cover; cursor: zoom-in;">
+                            </button>
+                            <div class="card-body">
+                                <h5 class="card-title">{{ picture.title }}</h5>
+                                <p class="card-text">{{ picture.description }}</p>
+                                <small class="text-muted">{{ picture.uploadDate|date('Y-m-d') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% include 'modules/macro.html.twig' with { 'pictures': pictures } %}
+        {% endif %}
+    </section>
 {% endblock %}

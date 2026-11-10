@@ -6,7 +6,10 @@
     <main class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1>Manage photos</h1>
-            <a class="btn btn-primary" href="{{ path('app_admin_picture_new') }}">Add photo</a>
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-primary" href="{{ path('app_admin_picture_bulk') }}">Bulk upload</a>
+                <a class="btn btn-primary" href="{{ path('app_admin_picture_new') }}">Add photo</a>
+            </div>
         </div>
 
         {% for message in app.flashes('success') %}

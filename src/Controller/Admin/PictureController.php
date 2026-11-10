@@ -6,15 +6,19 @@ use App\Entity\Album;
 use App\Entity\Pictures;
 use App\Form\PicturesType;
 use App\Repository\PicturesRepository;
+use App\Service\ImageResizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/admin/pictures', name: 'app_admin_picture_')]
 #[IsGranted('IS_AUTHENTICATED')]
@@ -22,6 +26,11 @@ final class PictureController extends AbstractController
 {
     private const URL_PREFIX = '/uploads/pictures/';
     private const NO_ALBUM_FOLDER = 'other';
+
+    public function __construct(private readonly ImageResizer $imageResizer)
+    {
+    }
+
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(PicturesRepository $picturesRepository): Response
     {
@@ -58,6 +67,75 @@ final class PictureController extends AbstractController
         return $this->render('admin/pictures/new.html.twig', [
             'form' => $form,
         ]);
+    }
+
+    #[Route('/bulk', name: 'bulk', methods: ['GET'])]
+    public function bulk(EntityManagerInterface $entityManager): Response
+    {
+        return $this->render('admin/pictures/bulk.html.twig', [
+            'albums' => $entityManager->getRepository(Album::class)->findBy([], ['name' => 'ASC']),
+        ]);
+    }
+
+    #[Route('/bulk/upload', name: 'bulk_upload', methods: ['POST'])]
+    public function bulkUpload(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ValidatorInterface $validator,
+    ): JsonResponse {
+        if (!$this->isCsrfTokenValid('bulk-pictures', (string) $request->request->get('_token'))) {
+            return new JsonResponse(['errors' => ['file' => 'Invalid CSRF token.']], Response::HTTP_FORBIDDEN);
+        }
+
+        $data = [
+            'title' => (string) $request->request->get('title', ''),
+            'description' => (string) $request->request->get('description', ''),
+            'metadata' => (string) $request->request->get('metadata', ''),
+            'uploadDate' => (string) $request->request->get('uploadDate', ''),
+        ];
+        $file = $request->files->get('file');
+        $albumId = $request->request->get('album');
+        $album = $albumId ? $entityManager->getRepository(Album::class)->find($albumId) : null;
+
+        $fieldConstraints = [
+            'title' => [new Assert\NotBlank(), new Assert\Length(max: 25)],
+            'description' => [new Assert\NotBlank(), new Assert\Length(max: 255)],
+            'metadata' => [new Assert\NotBlank(), new Assert\Length(max: 255)],
+            'uploadDate' => [new Assert\NotBlank(), new Assert\Date()],
+        ];
+        $errors = [];
+        foreach ($fieldConstraints as $field => $constraints) {
+            $violations = $validator->validate($data[$field], $constraints);
+            if (count($violations) > 0) {
+                $errors[$field] = $violations[0]->getMessage();
+            }
+        }
+        $violations = $validator->validate($file, [
+            new Assert\NotNull(),
+            new Assert\Image(mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']),
+        ]);
+        if (count($violations) > 0) {
+            $errors['file'] = $violations[0]->getMessage();
+        }
+        if ($albumId && $album === null) {
+            $errors['album'] = 'This album does not exist.';
+        }
+        if ($errors !== []) {
+            return new JsonResponse(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $picture = (new Pictures())
+            ->setTitle($data['title'])
+            ->setDescription($data['description'])
+            ->setMetadata($data['metadata'])
+            ->setUploadDate(new \DateTime($data['uploadDate']))
+            ->setAlbum($album);
+        $picture->setUrl($this->storeFile($file, $album));
+
+        $entityManager->persist($picture);
+        $entityManager->flush();
+
+        return new JsonResponse(['id' => $picture->getId(), 'url' => $picture->getUrl()], Response::HTTP_CREATED);
     }
 
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
@@ -123,7 +201,11 @@ final class PictureController extends AbstractController
         $filename = bin2hex(random_bytes(16)).'.'.$extension;
         $uploadDirectory = $this->uploadRoot().'/'.$folder;
         (new Filesystem())->mkdir($uploadDirectory);
-        $uploadedFile->move($uploadDirectory, $filename);
+        $this->imageResizer->resizeAndStore(
+            $uploadedFile->getPathname(),
+            $uploadedFile->getMimeType() ?? '',
+            $uploadDirectory.'/'.$filename,
+        );
 
         return self::URL_PREFIX.$folder.'/'.$filename;
     }

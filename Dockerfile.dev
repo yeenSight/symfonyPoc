@@ -1,6 +1,6 @@
 FROM php:8.3-apache
-RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev libicu-dev libzip-dev unzip git \
- && docker-php-ext-install pdo_pgsql intl opcache zip \
+RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev libicu-dev libzip-dev libpng-dev libjpeg-dev libwebp-dev libexif-dev unzip git \
+ && docker-php-ext-configure gd --with-jpeg --with-webp && docker-php-ext-install pdo_pgsql intl opcache zip gd exif \
  && a2enmod rewrite \
  && rm -rf /var/lib/apt/lists/*
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
