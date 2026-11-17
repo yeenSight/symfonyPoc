@@ -1,0 +1,28 @@
+{% set route = app.current_route %}
+<nav class="admin-sidebar d-flex flex-column flex-shrink-0 p-3 bg-body-tertiary" style="width: 240px; min-height: calc(100vh - 56px);" aria-label="Administration">
+    <a class="mb-3 fw-bold text-decoration-none {{ route == 'app_admin_admin_manager' ? 'text-primary' }}" href="{{ path('app_admin_admin_manager') }}">Administration</a>
+    <hr class="mt-0">
+
+    <h6 class="text-uppercase text-body-secondary small">Modules</h6>
+    <ul class="nav nav-pills flex-column mb-3">
+        <li class="nav-item">
+            <a class="nav-link {{ route in ['app_admin_picture_index', 'app_admin_picture_edit'] ? 'active' }}" href="{{ path('app_admin_picture_index') }}">Image manager</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ route in ['app_admin_album_index', 'app_admin_album_edit'] ? 'active' }}" href="{{ path('app_admin_album_index') }}">Album manager</a>
+        </li>
+    </ul>
+
+    <h6 class="text-uppercase text-body-secondary small">Pages</h6>
+    <ul class="nav nav-pills flex-column">
+        <li class="nav-item">
+            <a class="nav-link {{ route == 'app_admin_picture_new' ? 'active' }}" href="{{ path('app_admin_picture_new') }}">Add image</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ route == 'app_admin_album_new' ? 'active' }}" href="{{ path('app_admin_album_new') }}">Add album</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ route == 'app_admin_picture_bulk' ? 'active' }}" href="{{ path('app_admin_picture_bulk') }}">Bulk import</a>
+        </li>
+    </ul>
+</nav>

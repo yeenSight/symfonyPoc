@@ -1,8 +1,8 @@
-{% extends 'base.html.twig' %}
+{% extends 'admin/layout.html.twig' %}
 
 {% block title %}Manage photos{% endblock %}
 
-{% block body %}
+{% block admin_body %}
     <main class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1>Manage photos</h1>
@@ -16,9 +16,82 @@
             <div class="alert alert-success">{{ message }}</div>
         {% endfor %}
 
+        {# Filters #}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Filters</h5>
+                <form method="GET" class="row g-3" id="filterForm">
+                    <div class="col-md-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" placeholder="Search by title" value="{{ filters.title ?? '' }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="keywords" class="form-label">Keywords</label>
+                        <input type="text" class="form-control" id="keywords" name="keywords" placeholder="Search in metadata" value="{{ filters.keywords ?? '' }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="album" class="form-label">Album</label>
+                        <select class="form-select" id="album" name="album">
+                            <option value="">All albums</option>
+                            {% for album in albums %}
+                                <option value="{{ album.id }}" {% if filters.album == album.id %}selected{% endif %}>{{ album.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Upload Date</label>
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <select class="form-select" id="dateType" name="dateType">
+                                    <option value="">Any date</option>
+                                    <option value="exact" {% if filters.dateType == 'exact' %}selected{% endif %}>Exact date</option>
+                                    <option value="range" {% if filters.dateType == 'range' %}selected{% endif %}>Date range</option>
+                                    <option value="after" {% if filters.dateType == 'after' %}selected{% endif %}>After date</option>
+                                    <option value="before" {% if filters.dateType == 'before' %}selected{% endif %}>Before date</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3" id="exactDateField" data-date-type="exact">
+                                <input type="date" class="form-control" id="dateExact" name="dateExact" value="{% if filters.dateExact %}{{ filters.dateExact|date('Y-m-d') }}{% endif %}">
+                            </div>
+
+                            <div class="col-md-3" id="rangeFromField" data-date-type="range">
+                                <input type="date" class="form-control" id="dateFrom" name="dateFrom" placeholder="From" value="{% if filters.dateFrom %}{{ filters.dateFrom|date('Y-m-d') }}{% endif %}">
+                            </div>
+
+                            <div class="col-md-3" id="rangeToField" data-date-type="range">
+                                <input type="date" class="form-control" id="dateTo" name="dateTo" placeholder="To" value="{% if filters.dateTo %}{{ filters.dateTo|date('Y-m-d') }}{% endif %}">
+                            </div>
+
+                            <div class="col-md-3" id="afterDateField" data-date-type="after">
+                                <input type="date" class="form-control" id="dateAfter" name="dateAfter" value="{% if filters.dateAfter %}{{ filters.dateAfter|date('Y-m-d') }}{% endif %}">
+                            </div>
+
+                            <div class="col-md-3" id="beforeDateField" data-date-type="before">
+                                <input type="date" class="form-control" id="dateBefore" name="dateBefore" value="{% if filters.dateBefore %}{{ filters.dateBefore|date('Y-m-d') }}{% endif %}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        <a href="{{ path('app_admin_picture_index') }}" class="btn btn-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         {% if pictures is empty %}
-            <p>No photos yet.</p>
+            <p class="text-muted">No photos found.</p>
         {% else %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">Total: {{ totalPictures }} photo{{ totalPictures > 1 ? 's' : '' }}</small>
+                <small class="text-muted">Page {{ currentPage }} of {{ totalPages }}</small>
+            </div>
+
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead>
@@ -33,7 +106,11 @@
                     <tbody>
                         {% for picture in pictures %}
                             <tr>
-                                <td><img src="{{ picture.url }}" alt="{{ picture.title }}" style="max-width: 100px; max-height: 70px;"></td>
+                                <td>
+                                    <button type="button" class="p-0 border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#picture-modal-{{ picture.id }}" aria-label="View {{ picture.title }}">
+                                        <img src="{{ picture.url }}" alt="{{ picture.title }}" style="max-width: 100px; max-height: 70px;">
+                                    </button>
+                                </td>
                                 <td>{{ picture.title }}</td>
                                 <td>{{ picture.album ? picture.album.name : '—' }}</td>
                                 <td>{{ picture.uploadDate|date('Y-m-d') }}</td>
@@ -49,6 +126,63 @@
                     </tbody>
                 </table>
             </div>
+
+            {% include 'modules/macro.html.twig' with { 'pictures': pictures } %}
+
+            {% if totalPages > 1 %}
+                <nav aria-label="Pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if currentPage > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ path('app_admin_picture_index', {page: 1, title: filters.title, keywords: filters.keywords, album: filters.album, dateType: filters.dateType, dateExact: filters.dateExact ? filters.dateExact|date('Y-m-d') : '', dateFrom: filters.dateFrom ? filters.dateFrom|date('Y-m-d') : '', dateTo: filters.dateTo ? filters.dateTo|date('Y-m-d') : '', dateAfter: filters.dateAfter ? filters.dateAfter|date('Y-m-d') : '', dateBefore: filters.dateBefore ? filters.dateBefore|date('Y-m-d') : ''}) }}">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="{{ path('app_admin_picture_index', {page: currentPage - 1, title: filters.title, keywords: filters.keywords, album: filters.album, dateType: filters.dateType, dateExact: filters.dateExact ? filters.dateExact|date('Y-m-d') : '', dateFrom: filters.dateFrom ? filters.dateFrom|date('Y-m-d') : '', dateTo: filters.dateTo ? filters.dateTo|date('Y-m-d') : '', dateAfter: filters.dateAfter ? filters.dateAfter|date('Y-m-d') : '', dateBefore: filters.dateBefore ? filters.dateBefore|date('Y-m-d') : ''}) }}">Previous</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">First</span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">Previous</span>
+                            </li>
+                        {% endif %}
+
+                        {% for page in 1..totalPages %}
+                            {% if page == currentPage %}
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ page }}</span>
+                                </li>
+                            {% elseif (page >= currentPage - 2 and page <= currentPage + 2) or page == 1 or page == totalPages %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ path('app_admin_picture_index', {page: page, title: filters.title, keywords: filters.keywords, album: filters.album, dateType: filters.dateType, dateExact: filters.dateExact ? filters.dateExact|date('Y-m-d') : '', dateFrom: filters.dateFrom ? filters.dateFrom|date('Y-m-d') : '', dateTo: filters.dateTo ? filters.dateTo|date('Y-m-d') : '', dateAfter: filters.dateAfter ? filters.dateAfter|date('Y-m-d') : '', dateBefore: filters.dateBefore ? filters.dateBefore|date('Y-m-d') : ''}) }}">{{ page }}</a>
+                                </li>
+                            {% elseif page == currentPage - 3 or page == currentPage + 3 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if currentPage < totalPages %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ path('app_admin_picture_index', {page: currentPage + 1, title: filters.title, keywords: filters.keywords, album: filters.album, dateType: filters.dateType, dateExact: filters.dateExact ? filters.dateExact|date('Y-m-d') : '', dateFrom: filters.dateFrom ? filters.dateFrom|date('Y-m-d') : '', dateTo: filters.dateTo ? filters.dateTo|date('Y-m-d') : '', dateAfter: filters.dateAfter ? filters.dateAfter|date('Y-m-d') : '', dateBefore: filters.dateBefore ? filters.dateBefore|date('Y-m-d') : ''}) }}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="{{ path('app_admin_picture_index', {page: totalPages, title: filters.title, keywords: filters.keywords, album: filters.album, dateType: filters.dateType, dateExact: filters.dateExact ? filters.dateExact|date('Y-m-d') : '', dateFrom: filters.dateFrom ? filters.dateFrom|date('Y-m-d') : '', dateTo: filters.dateTo ? filters.dateTo|date('Y-m-d') : '', dateAfter: filters.dateAfter ? filters.dateAfter|date('Y-m-d') : '', dateBefore: filters.dateBefore ? filters.dateBefore|date('Y-m-d') : ''}) }}">Last</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">Next</span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">Last</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
         {% endif %}
     </main>
+
 {% endblock %}

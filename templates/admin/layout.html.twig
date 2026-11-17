@@ -1,0 +1,10 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="d-flex">
+        {% include 'admin/modules/lateral.html.twig' %}
+        <main class="flex-grow-1 p-3">
+            {% block admin_body %}{% endblock %}
+        </main>
+    </div>
+{% endblock %}
