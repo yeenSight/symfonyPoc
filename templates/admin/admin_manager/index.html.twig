@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello Admin/AdminManagerController!{% endblock %}
+
+{% block body %}
+    <section class="latest-pictures">
+        <h2>Statistics</h2>
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <span>Numbers of pic : {{ statistic.picturesCount }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <span>Numbers of albums : {{ statistic.albumCount }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}
