@@ -1,8 +1,8 @@
-{% extends 'base.html.twig' %}
+{% extends 'admin/layout.html.twig' %}
 
 {% block title %}Bulk upload{% endblock %}
 
-{% block body %}
+{% block admin_body %}
     <main class="container py-4"
         data-controller="bulk-upload"
         data-bulk-upload-url-value="{{ path('app_admin_picture_bulk_upload') }}"

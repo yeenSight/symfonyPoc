@@ -89,3 +89,16 @@ body {
     border-radius: 0.5rem;
     flex-shrink: 0;
 }
+
+@supports selector(:has(*)) {
+    #filterForm [data-date-type] {
+        display: none;
+    }
+
+    #filterForm:has(#dateType option[value="exact"]:checked) [data-date-type="exact"],
+    #filterForm:has(#dateType option[value="range"]:checked) [data-date-type="range"],
+    #filterForm:has(#dateType option[value="after"]:checked) [data-date-type="after"],
+    #filterForm:has(#dateType option[value="before"]:checked) [data-date-type="before"] {
+        display: block;
+    }
+}

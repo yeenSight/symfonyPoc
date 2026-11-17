@@ -1,0 +1,47 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Manage albums{% endblock %}
+
+{% block admin_body %}
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1>Manage albums</h1>
+            <a class="btn btn-primary" href="{{ path('app_admin_album_new', {from: 'manager'}) }}">Add album</a>
+        </div>
+
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+
+        {% if albums is empty %}
+            <p>No albums yet.</p>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for album in albums %}
+                            <tr>
+                                <td>{{ album.name }}</td>
+                                <td>{{ album.description }}</td>
+                                <td>
+                                    <a class="btn btn-secondary btn-sm" href="{{ path('app_admin_album_edit', {id: album.id, from: 'manager'}) }}">Edit</a>
+                                    <form class="d-inline" method="post" action="{{ path('app_admin_album_delete', {id: album.id, from: 'manager'}) }}" onsubmit="return confirm('Delete this album? Its photos will be kept.');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-album-' ~ album.id) }}">
+                                        <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -32,11 +32,44 @@ final class PictureController extends AbstractController
     }
 
     #[Route('', name: 'index', methods: ['GET'])]
-    public function index(PicturesRepository $picturesRepository): Response
+    public function index(Request $request, PicturesRepository $picturesRepository, EntityManagerInterface $entityManager): Response
     {
+        $filters = $this->extractFilters($request);
+        
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = 25;
+        $offset = ($page - 1) * $limit;
+
+        $totalPictures = $picturesRepository->countFiltered($filters);
+        $pictures = $picturesRepository->findFiltered($filters);
+        $pictures = array_slice($pictures, $offset, $limit);
+        $totalPages = (int) ceil($totalPictures / $limit);
+
+        $albums = $entityManager->getRepository(Album::class)->findBy([], ['name' => 'ASC']);
+
         return $this->render('admin/pictures/index.html.twig', [
-            'pictures' => $picturesRepository->findBy([], ['id' => 'DESC']),
+            'pictures' => $pictures,
+            'currentPage' => $page,
+            'totalPages' => $totalPages,
+            'totalPictures' => $totalPictures,
+            'albums' => $albums,
+            'filters' => $filters,
         ]);
+    }
+
+    private function extractFilters(Request $request): array
+    {
+        return [
+            'album' => $request->query->get('album') ? (int) $request->query->get('album') : null,
+            'title' => $request->query->get('title') ?: null,
+            'keywords' => $request->query->get('keywords') ?: null,
+            'dateType' => $request->query->get('dateType') ?: null,
+            'dateExact' => $request->query->get('dateExact') ? new \DateTime($request->query->get('dateExact')) : null,
+            'dateFrom' => $request->query->get('dateFrom') ? new \DateTime($request->query->get('dateFrom')) : null,
+            'dateTo' => $request->query->get('dateTo') ? new \DateTime($request->query->get('dateTo')) : null,
+            'dateAfter' => $request->query->get('dateAfter') ? new \DateTime($request->query->get('dateAfter')) : null,
+            'dateBefore' => $request->query->get('dateBefore') ? new \DateTime($request->query->get('dateBefore')) : null,
+        ];
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]

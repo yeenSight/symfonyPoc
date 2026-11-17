@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Album;
 use App\Form\AlbumType;
+use App\Repository\AlbumRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,6 +19,14 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 #[IsGranted('IS_AUTHENTICATED')]
 final class AlbumController extends AbstractController
 {
+    #[Route('', name: 'index', methods: ['GET'])]
+    public function index(AlbumRepository $albumRepository): Response
+    {
+        return $this->render('admin/albums/index.html.twig', [
+            'albums' => $albumRepository->findBy([], ['name' => 'ASC', 'id' => 'ASC']),
+        ]);
+    }
+
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
@@ -29,6 +38,10 @@ final class AlbumController extends AbstractController
             $entityManager->persist($album);
             $entityManager->flush();
             $this->addFlash('success', 'Album created successfully.');
+
+            if ($request->query->get('from') === 'manager') {
+                return $this->redirectToRoute('app_admin_album_index');
+            }
 
             return $this->redirectToRoute('app_album_show', ['id' => $album->getId()]);
         }
@@ -78,6 +91,10 @@ final class AlbumController extends AbstractController
             $entityManager->flush();
             $this->addFlash('success', 'Album updated successfully.');
 
+            if ($request->query->get('from') === 'manager') {
+                return $this->redirectToRoute('app_admin_album_index');
+            }
+
             return $this->redirectToRoute('app_album_show', ['id' => $album->getId()]);
         }
 
@@ -100,6 +117,6 @@ final class AlbumController extends AbstractController
         $entityManager->flush();
         $this->addFlash('success', 'Album deleted. Its photos were kept.');
 
-        return $this->redirectToRoute('app_pictures');
+        return $this->redirectToRoute($request->query->get('from') === 'manager' ? 'app_admin_album_index' : 'app_pictures');
     }
 }
