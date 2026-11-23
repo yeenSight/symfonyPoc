@@ -1,1 +1,1 @@
-triggering workflow
+[Consulter la documentation](docs/home.md)

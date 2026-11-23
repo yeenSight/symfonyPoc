@@ -26,9 +26,10 @@
                     {{ _self.card('Others', 'Photos that are not in any album.', others|first.url, others|length, path('app_album_others')) }}
                 {% endif %}
 
-                {% for album in albums %}
-                    {% set latest = album.latestPicture %}
-                    {{ _self.card(album.name, album.description, latest ? latest.url : null, album.pictures|length, path('app_album_show', {id: album.id})) }}
+                {% for entry in albums %}
+                    {% set album = entry.album %}
+                    {% set latest = entry.pictures|first %}
+                    {{ _self.card(album.name, album.description, latest ? latest.url : null, entry.pictures|length, path('app_album_show', {id: album.id})) }}
                 {% endfor %}
             </div>
         {% endif %}

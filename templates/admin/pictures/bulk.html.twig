@@ -3,17 +3,45 @@
 {% block title %}Bulk upload{% endblock %}
 
 {% block admin_body %}
+    {% set isDispatch = dispatches is defined %}
     <main class="container py-4"
         data-controller="bulk-upload"
-        data-bulk-upload-url-value="{{ path('app_admin_picture_bulk_upload') }}"
+        data-bulk-upload-url-value="{{ path(isDispatch ? 'app_admin_picture_dispatch' : 'app_admin_picture_bulk_upload') }}"
         data-bulk-upload-token-value="{{ csrf_token('bulk-pictures') }}"
         data-bulk-upload-today-value="{{ 'now'|date('Y-m-d') }}"
         data-bulk-upload-album-url-value="{{ path('app_admin_album_quick_create') }}"
-        data-bulk-upload-album-token-value="{{ csrf_token('quick-album') }}">
+        data-bulk-upload-album-token-value="{{ csrf_token('quick-album') }}"
+        {% if isDispatch %}data-bulk-upload-dispatch-url-value="{{ path('app_admin_picture_dispatch_create') }}"
+        data-bulk-upload-dispatch-token-value="{{ csrf_token('dispatch-create') }}"
+        data-bulk-upload-dispatch-reset-url-value="{{ path('app_admin_picture_dispatch_reset_code', {id: 0}) }}"
+        data-bulk-upload-dispatch-reset-token-value="{{ csrf_token('dispatch-reset') }}"{% endif %}>
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1>Bulk upload</h1>
+            <h1>{{ isDispatch ? 'Dispatch bulk upload' : 'Bulk upload' }}</h1>
             <a class="btn btn-secondary" href="{{ path('app_admin_picture_index') }}">Back to photos</a>
         </div>
+
+        {% if isDispatch %}
+            <div class="card mb-3"><div class="card-body">
+                <label class="form-label" for="dispatch-select">Dispatch</label>
+                <select class="form-select mb-3" id="dispatch-select" data-bulk-upload-target="dispatch">
+                    <option value="">Select a dispatch</option>
+                    {% for dispatch in dispatches %}
+                        <option value="{{ dispatch.id }}" data-id-code="{{ dispatch.idCode }}">{{ dispatch.nom }} ({{ dispatch.idCode }})</option>
+                    {% endfor %}
+                </select>
+                <p class="text-body-secondary">Uploading to an existing dispatch generates a new access code and invalidates the previous one.</p>
+                <form data-action="submit->bulk-upload#createDispatch">
+                    <label class="form-label" for="dispatch-name">Or create a dispatch</label>
+                    <div class="d-flex gap-2">
+                        <input class="form-control" id="dispatch-name" maxlength="255" required data-bulk-upload-target="dispatchName">
+                        <button class="btn btn-outline-primary" type="submit" data-bulk-upload-target="dispatchSave">Create</button>
+                    </div>
+                </form>
+                <div class="alert mt-3 mb-0" hidden data-bulk-upload-target="dispatchMessage"></div>
+                <button class="btn btn-warning mt-3" type="button" hidden data-bulk-upload-target="dispatchResetRetry" data-action="bulk-upload#retryDispatchReset">Retry access code generation</button>
+                <div data-bulk-upload-target="dispatchCredentials"></div>
+            </div></div>
+        {% endif %}
 
         <div class="dropzone mb-3" data-bulk-upload-target="dropzone"
             data-action="dragover->bulk-upload#dragOver dragleave->bulk-upload#dragLeave drop->bulk-upload#drop click->bulk-upload#browse">
@@ -73,11 +101,11 @@
                                     <div class="invalid-feedback"></div>
                                 </div>
                                 <div class="mb-2">
-                                    <input class="form-control form-control-sm" name="description" placeholder="Description" maxlength="255">
+                                    <input class="form-control form-control-sm" name="description" placeholder="Description (optional)" aria-label="Description (optional)" maxlength="255">
                                     <div class="invalid-feedback"></div>
                                 </div>
                                 <div class="mb-2">
-                                    <input class="form-control form-control-sm" name="metadata" placeholder="Metadata" maxlength="255">
+                                    <input class="form-control form-control-sm" name="metadata" placeholder="Metadata (optional)" aria-label="Metadata (optional)" maxlength="255">
                                     <div class="invalid-feedback"></div>
                                 </div>
                                 <div class="row g-2">
@@ -96,6 +124,28 @@
                 </div>
             </div>
         </template>
+
+        {% if isDispatch %}
+            <div class="modal fade" tabindex="-1" aria-labelledby="dispatch-result-title" aria-hidden="true" data-bulk-upload-target="dispatchResultModal">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5" id="dispatch-result-title">Dispatch upload complete</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>All photos were uploaded successfully.</p>
+                            <p>Dispatch identifier: <strong data-bulk-upload-target="dispatchResultIdentifier"></strong></p>
+                            <p>Access code: <strong data-bulk-upload-target="dispatchResultCode"></strong></p>
+                            <p class="mb-0">Save the access code securely; it cannot be recovered later.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
 
         <div class="modal fade" tabindex="-1" aria-labelledby="new-album-title" aria-hidden="true" data-bulk-upload-target="modal">
             <div class="modal-dialog">

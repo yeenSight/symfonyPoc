@@ -21,7 +21,7 @@ class PicturesRepository extends ServiceEntityRepository
      */
     public function findLatest(int $limit = 3): array
     {
-        return $this->findBy([], ['uploadDate' => 'DESC', 'id' => 'DESC'], $limit);
+        return $this->findBy(['isPublic' => true], ['uploadDate' => 'DESC', 'id' => 'DESC'], $limit);
     }
 
     public function findFiltered(array $filters): array
