@@ -38,6 +38,9 @@
                     <li class="nav-item">
                         <a class="nav-link {{ app.current_route in ['app_pictures', 'app_album_show'] ? 'active' }}" href="{{ path('app_pictures') }}">Albums</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ path('app_dispatch') }}">Private dispatch</a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Informations</a>
                         <ul class="dropdown-menu">
@@ -58,6 +61,7 @@
                                 <li class="nav-item">
                                     <a class="dropdown-item {{ app.current_route == 'app_admin_picture_bulk' ? 'active' }}" href="{{ path('app_admin_picture_bulk') }}">Bulk upload</a>
                                 </li>
+                                <li><a class="dropdown-item" href="{{ path('app_admin_picture_bulk_dispatch') }}">Pickup</a></li>
                             </ul>
                         </li>
                     {% endif %}

@@ -29,19 +29,19 @@ class PicturesType extends AbstractType
             ])
             ->add('description', TextType::class, [
                 'label' => 'Description',
+                'required' => false,
                 'empty_data' => '',
                 'attr' => ['maxlength' => 255],
                 'constraints' => [
-                    new Assert\NotBlank(),
                     new Assert\Length(max: 255),
                 ],
             ])
             ->add('metadata', TextType::class, [
                 'label' => 'Metadata',
+                'required' => false,
                 'empty_data' => '',
                 'attr' => ['maxlength' => 255],
                 'constraints' => [
-                    new Assert\NotBlank(),
                     new Assert\Length(max: 255),
                 ],
             ])

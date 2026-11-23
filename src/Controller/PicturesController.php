@@ -15,7 +15,10 @@ final class PicturesController extends AbstractController
     public function index(AlbumRepository $albumRepository, PicturesRepository $picturesRepository): Response
     {
         return $this->render('pictures/index.html.twig', [
-            'albums' => $albumRepository->findBy([], ['name' => 'ASC']),
+            'albums' => array_map(
+                fn (Album $album) => ['album' => $album, 'pictures' => $picturesRepository->findBy(['album' => $album, 'isPublic' => true], ['uploadDate' => 'DESC', 'id' => 'DESC'])],
+                $albumRepository->findBy([], ['name' => 'ASC']),
+            ),
             'others' => $this->findOthers($picturesRepository),
         ]);
     }
@@ -32,13 +35,13 @@ final class PicturesController extends AbstractController
     }
 
     #[Route('/albums/{id}', name: 'app_album_show', requirements: ['id' => '\d+'], methods: ['GET'])]
-    public function show(Album $album): Response
+    public function show(Album $album, PicturesRepository $picturesRepository): Response
     {
         return $this->render('pictures/album.html.twig', [
             'album' => $album,
             'name' => $album->getName(),
             'description' => $album->getDescription(),
-            'pictures' => $album->getPicturesNewestFirst(),
+            'pictures' => $picturesRepository->findBy(['album' => $album, 'isPublic' => true], ['uploadDate' => 'DESC', 'id' => 'DESC']),
         ]);
     }
 
@@ -47,6 +50,6 @@ final class PicturesController extends AbstractController
      */
     private function findOthers(PicturesRepository $picturesRepository): array
     {
-        return $picturesRepository->findBy(['album' => null], ['uploadDate' => 'DESC', 'id' => 'DESC']);
+        return $picturesRepository->findBy(['album' => null, 'isPublic' => true], ['uploadDate' => 'DESC', 'id' => 'DESC']);
     }
 }

@@ -3,11 +3,15 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Album;
+use App\Entity\DispatchCatalog;
 use App\Entity\Pictures;
 use App\Form\PicturesType;
 use App\Repository\PicturesRepository;
 use App\Service\ImageResizer;
+use App\Service\PictureStorage;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\LockMode;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,7 +31,7 @@ final class PictureController extends AbstractController
     private const URL_PREFIX = '/uploads/pictures/';
     private const NO_ALBUM_FOLDER = 'other';
 
-    public function __construct(private readonly ImageResizer $imageResizer)
+    public function __construct(private readonly ImageResizer $imageResizer, private readonly PictureStorage $pictureStorage)
     {
     }
 
@@ -88,6 +92,7 @@ final class PictureController extends AbstractController
             }
 
             $picture->setUrl($this->storeFile($uploadedFile, $picture->getAlbum()));
+            $picture->setIsPublic(true);
 
             $entityManager->persist($picture);
             $entityManager->flush();
@@ -100,6 +105,86 @@ final class PictureController extends AbstractController
         return $this->render('admin/pictures/new.html.twig', [
             'form' => $form,
         ]);
+    }
+
+    #[Route('/addDispatch', name: 'dispatch', methods: ['POST'])]
+    public function addDispatch(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ValidatorInterface $validator,
+    ): JsonResponse {
+        return $this->uploadPicture($request, $entityManager, $validator, true);
+    }
+
+    #[Route('/bulk/dispatch', name: 'bulk_dispatch', methods: ['GET'])]
+    public function bulkDispatch(EntityManagerInterface $entityManager): Response
+    {
+        return $this->render('admin/pictures/bulk.html.twig', [
+            'albums' => $entityManager->getRepository(Album::class)->findBy([], ['name' => 'ASC']),
+            'dispatches' => $entityManager->getRepository(DispatchCatalog::class)->findBy([], ['nom' => 'ASC']),
+        ]);
+    }
+
+    #[Route('/bulk/dispatch/create', name: 'dispatch_create', methods: ['POST'])]
+    public function createDispatch(Request $request, EntityManagerInterface $entityManager, ValidatorInterface $validator): JsonResponse
+    {
+        if (!$this->isCsrfTokenValid('dispatch-create', (string) $request->request->get('_token'))) {
+            return new JsonResponse(['errors' => ['name' => 'Invalid CSRF token.']], Response::HTTP_FORBIDDEN);
+        }
+
+        $name = trim((string) $request->request->get('name', ''));
+        $violations = $validator->validate($name, [new Assert\NotBlank(), new Assert\Length(max: 255)]);
+        if (count($violations) > 0) {
+            return new JsonResponse(['errors' => ['name' => $violations[0]->getMessage()]], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $idCode = null;
+        for ($attempt = 0; $attempt < 25; ++$attempt) {
+            $idCode = sprintf('%06d', random_int(0, 999999));
+            if ($entityManager->getRepository(DispatchCatalog::class)->findOneBy(['idCode' => $idCode]) === null) {
+                break;
+            }
+            $idCode = null;
+        }
+        if ($idCode === null) {
+            return new JsonResponse(['errors' => ['name' => 'Could not generate an available identifier. Please retry.']], Response::HTTP_CONFLICT);
+        }
+        do {
+            $code = sprintf('%06d', random_int(0, 999999));
+        } while ($code === $idCode);
+
+        $dispatch = (new DispatchCatalog())->setNom($name)->setIdCode($idCode)->setCode(password_hash($code, PASSWORD_DEFAULT));
+        $entityManager->persist($dispatch);
+        try {
+            $entityManager->flush();
+        } catch (UniqueConstraintViolationException) {
+            return new JsonResponse(['errors' => ['name' => 'Identifier collision. Please retry.']], Response::HTTP_CONFLICT);
+        }
+
+        return new JsonResponse(['id' => $dispatch->getId(), 'name' => $name, 'idCode' => $idCode, 'code' => $code], Response::HTTP_CREATED, ['Cache-Control' => 'no-store']);
+    }
+
+    #[Route('/bulk/dispatch/{id}/code', name: 'dispatch_reset_code', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function resetDispatchCode(Request $request, DispatchCatalog $dispatch, EntityManagerInterface $entityManager): JsonResponse
+    {
+        if (!$this->isCsrfTokenValid('dispatch-reset', (string) $request->request->get('_token'))) {
+            return new JsonResponse(['errors' => ['code' => 'Invalid CSRF token.']], Response::HTTP_FORBIDDEN);
+        }
+
+        $code = $entityManager->wrapInTransaction(function (EntityManagerInterface $entityManager) use ($dispatch): string {
+            $entityManager->lock($dispatch, LockMode::PESSIMISTIC_WRITE);
+            $entityManager->refresh($dispatch);
+            do {
+                $code = sprintf('%06d', random_int(0, 999999));
+            } while ($code === $dispatch->getIdCode() || password_verify($code, $dispatch->getCode()));
+
+            $dispatch->setCode(password_hash($code, PASSWORD_DEFAULT))
+                ->setFailedAttempts(0)
+                ->setLockedUntil(null);
+            return $code;
+        });
+
+        return new JsonResponse(['idCode' => $dispatch->getIdCode(), 'code' => $code], Response::HTTP_OK, ['Cache-Control' => 'no-store']);
     }
 
     #[Route('/bulk', name: 'bulk', methods: ['GET'])]
@@ -116,6 +201,11 @@ final class PictureController extends AbstractController
         EntityManagerInterface $entityManager,
         ValidatorInterface $validator,
     ): JsonResponse {
+        return $this->uploadPicture($request, $entityManager, $validator, false);
+    }
+
+    private function uploadPicture(Request $request, EntityManagerInterface $entityManager, ValidatorInterface $validator, bool $isDispatch): JsonResponse
+    {
         if (!$this->isCsrfTokenValid('bulk-pictures', (string) $request->request->get('_token'))) {
             return new JsonResponse(['errors' => ['file' => 'Invalid CSRF token.']], Response::HTTP_FORBIDDEN);
         }
@@ -129,11 +219,13 @@ final class PictureController extends AbstractController
         $file = $request->files->get('file');
         $albumId = $request->request->get('album');
         $album = $albumId ? $entityManager->getRepository(Album::class)->find($albumId) : null;
+        $dispatchId = $request->request->get('dispatch');
+        $dispatch = $isDispatch && $dispatchId ? $entityManager->getRepository(DispatchCatalog::class)->find($dispatchId) : null;
 
         $fieldConstraints = [
             'title' => [new Assert\NotBlank(), new Assert\Length(max: 25)],
-            'description' => [new Assert\NotBlank(), new Assert\Length(max: 255)],
-            'metadata' => [new Assert\NotBlank(), new Assert\Length(max: 255)],
+            'description' => [new Assert\Length(max: 255)],
+            'metadata' => [new Assert\Length(max: 255)],
             'uploadDate' => [new Assert\NotBlank(), new Assert\Date()],
         ];
         $errors = [];
@@ -153,6 +245,9 @@ final class PictureController extends AbstractController
         if ($albumId && $album === null) {
             $errors['album'] = 'This album does not exist.';
         }
+        if ($isDispatch && $dispatch === null) {
+            $errors['dispatch'] = 'Select a valid dispatch.';
+        }
         if ($errors !== []) {
             return new JsonResponse(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -162,11 +257,18 @@ final class PictureController extends AbstractController
             ->setDescription($data['description'])
             ->setMetadata($data['metadata'])
             ->setUploadDate(new \DateTime($data['uploadDate']))
-            ->setAlbum($album);
-        $picture->setUrl($this->storeFile($file, $album));
+            ->setAlbum($album)
+            ->setDispatchCatalog($dispatch)
+            ->setIsPublic(!$isDispatch);
+        $picture->setUrl($this->storeFile($file, $album, $isDispatch));
 
         $entityManager->persist($picture);
-        $entityManager->flush();
+        try {
+            $entityManager->flush();
+        } catch (\Throwable $exception) {
+            $this->removeFile($picture->getUrl());
+            throw $exception;
+        }
 
         return new JsonResponse(['id' => $picture->getId(), 'url' => $picture->getUrl()], Response::HTTP_CREATED);
     }
@@ -204,10 +306,12 @@ final class PictureController extends AbstractController
             $uploadedFile = $form->get('imageFile')->getData();
             if ($uploadedFile !== null) {
                 $previousUrl = $picture->getUrl();
-                $picture->setUrl($this->storeFile($uploadedFile, $picture->getAlbum()));
+                $picture->setUrl($this->storeFile($uploadedFile, $picture->getAlbum(), !$picture->getIsPublic()));
                 $this->removeFile($previousUrl);
             } else {
-                $this->moveToAlbumFolder($picture);
+                if ($picture->getIsPublic()) {
+                    $this->moveToAlbumFolder($picture);
+                }
             }
 
             $entityManager->flush();
@@ -223,7 +327,7 @@ final class PictureController extends AbstractController
         ]);
     }
 
-    private function storeFile(UploadedFile $uploadedFile, ?Album $album): string
+    private function storeFile(UploadedFile $uploadedFile, ?Album $album, bool $private = false): string
     {
         $extension = $uploadedFile->guessExtension();
         if ($extension === null) {
@@ -232,7 +336,7 @@ final class PictureController extends AbstractController
 
         $folder = $this->albumFolder($album);
         $filename = bin2hex(random_bytes(16)).'.'.$extension;
-        $uploadDirectory = $this->uploadRoot().'/'.$folder;
+        $uploadDirectory = $private ? $this->getParameter('kernel.project_dir').'/var/private/pictures' : $this->uploadRoot().'/'.$folder;
         (new Filesystem())->mkdir($uploadDirectory);
         $this->imageResizer->resizeAndStore(
             $uploadedFile->getPathname(),
@@ -240,13 +344,13 @@ final class PictureController extends AbstractController
             $uploadDirectory.'/'.$filename,
         );
 
-        return self::URL_PREFIX.$folder.'/'.$filename;
+        return $private ? '/private/pictures/'.$filename : self::URL_PREFIX.$folder.'/'.$filename;
     }
 
     private function moveToAlbumFolder(Pictures $picture): void
     {
         $url = $picture->getUrl();
-        $currentPath = $this->resolvePath($url);
+        $currentPath = $this->pictureStorage->resolvePath($url);
         if ($currentPath === null) {
             return;
         }
@@ -264,7 +368,7 @@ final class PictureController extends AbstractController
 
     private function removeFile(?string $url): void
     {
-        $filePath = $this->resolvePath($url);
+        $filePath = $this->pictureStorage->resolvePath($url);
         if ($filePath !== null) {
             (new Filesystem())->remove($filePath);
         }
@@ -280,22 +384,5 @@ final class PictureController extends AbstractController
     private function uploadRoot(): string
     {
         return $this->getParameter('kernel.project_dir').'/public/uploads/pictures';
-    }
-
-    // Returns the absolute path of an existing uploaded file, or null if the URL is not a managed upload.
-    private function resolvePath(?string $url): ?string
-    {
-        if ($url === null || !str_starts_with($url, self::URL_PREFIX)) {
-            return null;
-        }
-
-        $relative = substr($url, strlen(self::URL_PREFIX));
-        if (str_contains($relative, '..')) {
-            return null;
-        }
-
-        $path = $this->uploadRoot().'/'.$relative;
-
-        return is_file($path) ? $path : null;
     }
 }

@@ -1,0 +1,75 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Pickup{% endblock %}
+
+{% block body %}
+    <main class="container py-4">
+        {% if dispatch %}
+            <h1>{{ dispatch.nom }}</h1>
+            <p>Cochez les photos que vous autorisez à être publié par le photographe sur ses réseaux.</p>
+            {% if pictures is empty %}
+                <p>No photos yet.</p>
+            {% else %}
+                <form method="post" action="{{ path('app_dispatch_publish', {idCode: dispatch.idCode}) }}" data-controller="dispatch-selection">
+                    <input type="hidden" name="_token" value="{{ csrf_token('dispatch-publish-' ~ dispatch.id) }}">
+                    <div class="sticky-top d-flex flex-wrap align-items-center gap-2 my-3 p-3 bg-body-tertiary border rounded shadow-sm" role="group" aria-label="Dispatch actions">
+                        <a class="btn btn-outline-primary" href="{{ path('app_dispatch_download_all', {idCode: dispatch.idCode}) }}" data-turbo="false">Download all photos</a>
+                        <button class="btn btn-outline-secondary" type="button" data-action="dispatch-selection#selectAll" aria-label="Select all photos for publication">Select all</button>
+                        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#confirm-publication">Validate</button>
+                    </div>
+                    <div class="row g-3">
+                        {% for picture in pictures %}
+                            <div class="col-6 col-md-4">
+                                <div class="card h-100">
+                                    <button type="button" class="p-0 border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#picture-modal-{{ picture.id }}" aria-label="View {{ picture.title }}">
+                                        <img class="card-img-top" src="{{ picture.url }}" alt="{{ picture.title }}">
+                                    </button>
+                                    <div class="card-body">
+                                        <h2 class="h5">{{ picture.title }}</h2>
+                                        <p>{{ picture.description }}</p>
+                                        <a class="btn btn-outline-primary btn-sm mb-3" href="{{ path('app_dispatch_download_picture', {idCode: dispatch.idCode, id: picture.id}) }}" data-turbo="false">Download photo</a>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="publish-{{ picture.id }}" name="pictures[]" value="{{ picture.id }}" data-dispatch-selection-target="picture" {% if picture.isPublic %}checked disabled{% endif %}>
+                                            <label class="form-check-label" for="publish-{{ picture.id }}">{{ picture.isPublic ? 'Already public' : 'Allow public publication' }}</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="modal fade" id="confirm-publication" tabindex="-1" aria-labelledby="confirm-publication-title" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h2 class="modal-title fs-5" id="confirm-publication-title">Confirmer la validation</h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">En acceptant, les photo sélectionnées seront rendu visible sur le site. De plus elles pourront être posé sur les réseau du photographe</div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                                    <button class="btn btn-primary" type="submit">Confirm</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                {% include 'modules/macro.html.twig' with { pictures: pictures } %}
+            {% endif %}
+        {% else %}
+            <h1>Private dispatch</h1>
+            {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+            <form method="post" action="{{ path('app_dispatch') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('dispatch-access') }}">
+                <div class="mb-3">
+                    <label class="form-label" for="idCode">Identifier (6 digits)</label>
+                    <input class="form-control" id="idCode" name="idCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" value="{{ idCode }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="code">Access code (6 digits)</label>
+                    <input class="form-control" id="code" name="code" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required>
+                </div>
+                <button class="btn btn-primary" type="submit">Open dispatch</button>
+            </form>
+        {% endif %}
+    </main>
+{% endblock %}

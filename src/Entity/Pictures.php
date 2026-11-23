@@ -32,6 +32,12 @@ class Pictures
     #[ORM\ManyToOne(inversedBy: 'pictures')]
     private ?Album $album = null;
 
+    #[ORM\Column]
+    private ?bool $isPublic = true;
+
+    #[ORM\ManyToOne]
+    private ?DispatchCatalog $dispatchCatalog = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -118,6 +124,30 @@ class Pictures
         if ($album !== null) {
             $album->addPicture($this);
         }
+
+        return $this;
+    }
+
+    public function getIsPublic(): ?bool
+    {
+        return $this->isPublic;
+    }
+
+    public function setIsPublic(bool $isPublic): static
+    {
+        $this->isPublic = $isPublic;
+
+        return $this;
+    }
+
+    public function getDispatchCatalog(): ?DispatchCatalog
+    {
+        return $this->dispatchCatalog;
+    }
+
+    public function setDispatchCatalog(?DispatchCatalog $dispatchCatalog): static
+    {
+        $this->dispatchCatalog = $dispatchCatalog;
 
         return $this;
     }
