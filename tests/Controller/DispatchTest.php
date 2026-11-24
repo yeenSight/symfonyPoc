@@ -279,6 +279,7 @@ final class DispatchTest extends WebTestCase
             $file = tempnam(sys_get_temp_dir(), 'picture-test-');
             $files[] = $file;
             imagepng(imagecreatetruecolor(2, 2), $file);
+            $originalImage = file_get_contents($file);
             $client->request('POST', '/admin/pictures/new', ['pictures' => [
                 '_token' => $token, 'title' => 'Single optional', 'description' => str_repeat('d', 256),
                 'metadata' => str_repeat('m', 256), 'uploadDate' => '2026-01-01',
@@ -293,6 +294,8 @@ final class DispatchTest extends WebTestCase
             $single = $em->getRepository(Pictures::class)->findOneBy(['title' => 'Single optional']);
             self::assertNotNull($single);
             $files[] = $projectDir.'/public'.$single->getUrl();
+            self::assertFileExists(end($files));
+            self::assertSame($originalImage, file_get_contents(end($files)));
             self::assertSame('', $single->getDescription());
             self::assertSame('', $single->getMetadata());
 
@@ -309,6 +312,7 @@ final class DispatchTest extends WebTestCase
                 $file = tempnam(sys_get_temp_dir(), 'picture-test-');
                 $files[] = $file;
                 imagepng(imagecreatetruecolor(2, 2), $file);
+                $originalImage = file_get_contents($file);
                 $data = ['_token' => $bulkToken, 'title' => $title, 'uploadDate' => '2026-01-01'];
                 if ($dispatchId !== null) {
                     $data['dispatch'] = $dispatchId;
@@ -324,6 +328,8 @@ final class DispatchTest extends WebTestCase
                 self::assertResponseStatusCodeSame(201);
                 $result = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
                 $files[] = $dispatchId === null ? $projectDir.'/public'.$result['url'] : $projectDir.'/var/private/pictures/'.basename($result['url']);
+                self::assertFileExists(end($files));
+                self::assertSame($originalImage, file_get_contents(end($files)));
                 $picture = $em->find(Pictures::class, $result['id']);
                 self::assertSame('', $picture->getDescription());
                 self::assertSame('', $picture->getMetadata());

@@ -7,7 +7,6 @@ use App\Entity\DispatchCatalog;
 use App\Entity\Pictures;
 use App\Form\PicturesType;
 use App\Repository\PicturesRepository;
-use App\Service\ImageResizer;
 use App\Service\PictureStorage;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -31,7 +30,7 @@ final class PictureController extends AbstractController
     private const URL_PREFIX = '/uploads/pictures/';
     private const NO_ALBUM_FOLDER = 'other';
 
-    public function __construct(private readonly ImageResizer $imageResizer, private readonly PictureStorage $pictureStorage)
+    public function __construct(private readonly PictureStorage $pictureStorage)
     {
     }
 
@@ -338,11 +337,7 @@ final class PictureController extends AbstractController
         $filename = bin2hex(random_bytes(16)).'.'.$extension;
         $uploadDirectory = $private ? $this->getParameter('kernel.project_dir').'/var/private/pictures' : $this->uploadRoot().'/'.$folder;
         (new Filesystem())->mkdir($uploadDirectory);
-        $this->imageResizer->resizeAndStore(
-            $uploadedFile->getPathname(),
-            $uploadedFile->getMimeType() ?? '',
-            $uploadDirectory.'/'.$filename,
-        );
+        $uploadedFile->move($uploadDirectory, $filename);
 
         return $private ? '/private/pictures/'.$filename : self::URL_PREFIX.$folder.'/'.$filename;
     }
