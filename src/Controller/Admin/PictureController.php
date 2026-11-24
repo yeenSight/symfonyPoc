@@ -7,7 +7,6 @@ use App\Entity\DispatchCatalog;
 use App\Entity\Pictures;
 use App\Form\PicturesType;
 use App\Repository\PicturesRepository;
-use App\Service\ImageResizer;
 use App\Service\PictureStorage;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -31,7 +30,7 @@ final class PictureController extends AbstractController
     private const URL_PREFIX = '/uploads/pictures/';
     private const NO_ALBUM_FOLDER = 'other';
 
-    public function __construct(private readonly ImageResizer $imageResizer, private readonly PictureStorage $pictureStorage)
+    public function __construct(private readonly PictureStorage $pictureStorage)
     {
     }
 
