@@ -29,8 +29,6 @@ final class ImageResizer
         }
 
         $orientation = $mimeType === 'image/jpeg' ? $this->exifOrientation($sourcePath) : 1;
-        $image = $this->applyOrientation($image, $orientation);
-
         $width = imagesx($image);
         $height = imagesy($image);
         $longest = max($width, $height);
@@ -42,11 +40,14 @@ final class ImageResizer
                 throw new \RuntimeException('The uploaded photo could not be resized.');
             }
             $image = $scaled;
+            unset($scaled);
         } elseif ($orientation === 1) {
             $this->move($sourcePath, $targetPath);
 
             return;
         }
+
+        $image = $this->applyOrientation($image, $orientation);
 
         $saved = match ($mimeType) {
             'image/jpeg' => imagejpeg($image, $targetPath, 90),
