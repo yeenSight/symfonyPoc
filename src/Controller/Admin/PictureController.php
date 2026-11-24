@@ -338,11 +338,12 @@ final class PictureController extends AbstractController
         $filename = bin2hex(random_bytes(16)).'.'.$extension;
         $uploadDirectory = $private ? $this->getParameter('kernel.project_dir').'/var/private/pictures' : $this->uploadRoot().'/'.$folder;
         (new Filesystem())->mkdir($uploadDirectory);
-        $this->imageResizer->resizeAndStore(
-            $uploadedFile->getPathname(),
-            $uploadedFile->getMimeType() ?? '',
-            $uploadDirectory.'/'.$filename,
-        );
+        // $this->imageResizer->resizeAndStore(
+        //     $uploadedFile->getPathname(),
+        //     $uploadedFile->getMimeType() ?? '',
+        //     $uploadDirectory.'/'.$filename,
+        // );
+        $uploadedFile->move($uploadDirectory, $filename);
 
         return $private ? '/private/pictures/'.$filename : self::URL_PREFIX.$folder.'/'.$filename;
     }
